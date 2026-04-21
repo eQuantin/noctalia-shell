@@ -18,6 +18,7 @@ Singleton {
   property bool isLabwc: false
   property bool isExtWorkspace: false
   property bool isScroll: false
+  property bool isKwin: false
 
   // Generic workspace and window data
   property ListModel workspaces: ListModel {}
@@ -79,6 +80,7 @@ Singleton {
       isMango = true;
       isLabwc = false;
       isExtWorkspace = false;
+      isKwin = false;
       backendLoader.sourceComponent = mangoComponent;
     } else if (labwcPid && labwcPid.length > 0) {
       isHyprland = false;
@@ -87,6 +89,7 @@ Singleton {
       isMango = false;
       isLabwc = true;
       isExtWorkspace = false;
+      isKwin = false;
       backendLoader.sourceComponent = labwcComponent;
       Logger.i("CompositorService", "Detected LabWC with PID: " + labwcPid);
     } else if (niriSocket && niriSocket.length > 0) {
@@ -96,6 +99,7 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = false;
+      isKwin = false;
       backendLoader.sourceComponent = niriComponent;
     } else if (hyprlandSignature && hyprlandSignature.length > 0) {
       isHyprland = true;
@@ -104,6 +108,7 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = false;
+      isKwin = false;
       backendLoader.sourceComponent = hyprlandComponent;
     } else if (swaySock && swaySock.length > 0) {
       isHyprland = false;
@@ -112,8 +117,19 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = false;
+      isKwin = false;
       isScroll = currentDesktop && currentDesktop.toLowerCase().includes("scroll");
       backendLoader.sourceComponent = swayComponent;
+    } else if ((Quickshell.env("KDE_FULL_SESSION") === "true") || (currentDesktop && currentDesktop.toUpperCase().includes("KDE")) || ((Quickshell.env("XDG_SESSION_DESKTOP") || "").toLowerCase().includes("plasma"))) {
+      isHyprland = false;
+      isNiri = false;
+      isSway = false;
+      isMango = false;
+      isLabwc = false;
+      isExtWorkspace = false;
+      isKwin = true;
+      backendLoader.sourceComponent = kwinComponent;
+      Logger.i("CompositorService", "Detected KWin/Plasma session");
     } else {
       // Always fallback to ext-workspace-v1
       isHyprland = false;
@@ -122,6 +138,7 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = true;
+      isKwin = false;
       backendLoader.sourceComponent = extWorkspaceComponent;
       Logger.i("CompositorService", "Using generic ext-workspace backend (no recognized compositor env)");
     }
@@ -196,6 +213,14 @@ Singleton {
     id: labwcComponent
     LabwcService {
       id: labwcBackend
+    }
+  }
+
+  // KWin (KDE Plasma) backend component
+  Component {
+    id: kwinComponent
+    KwinService {
+      id: kwinBackend
     }
   }
 
@@ -567,6 +592,15 @@ Singleton {
     Logger.i("Compositor", "LockScreen requested");
     if (executeSessionAction("lock"))
       return;
+
+    // KWin gates ext-session-lock-v1 to trusted clients (kscreenlocker) and
+    // rejects Quickshell's WlSessionLock bind, so Noctalia's own overlay lock
+    // never activates. Delegate to logind's lock-session signal — kscreenlocker
+    // listens for it and shows the user's configured Plasma lock screen.
+    if (isKwin) {
+      Quickshell.execDetached(["sh", "-c", "loginctl lock-session \"$XDG_SESSION_ID\" 2>/dev/null " + "|| qdbus6 org.freedesktop.ScreenSaver /ScreenSaver Lock 2>/dev/null " + "|| qdbus-qt6 org.freedesktop.ScreenSaver /ScreenSaver Lock"]);
+      return;
+    }
 
     if (PanelService && PanelService.lockScreen) {
       PanelService.lockScreen.active = true;
