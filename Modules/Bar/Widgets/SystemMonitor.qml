@@ -62,6 +62,19 @@ Item {
   readonly property bool showDiskAvailable: (widgetSettings.showDiskAvailable !== undefined) ? widgetSettings.showDiskAvailable : widgetMetadata.showDiskAvailable
   readonly property bool showLoadAverage: (widgetSettings.showLoadAverage !== undefined) ? widgetSettings.showLoadAverage : widgetMetadata.showLoadAverage
   readonly property string diskPath: (widgetSettings.diskPath !== undefined) ? widgetSettings.diskPath : widgetMetadata.diskPath
+
+  readonly property bool tooltipShowCpuUsage: (widgetSettings.tooltipShowCpuUsage !== undefined) ? widgetSettings.tooltipShowCpuUsage : widgetMetadata.tooltipShowCpuUsage
+  readonly property bool tooltipShowCpuCores: (widgetSettings.tooltipShowCpuCores !== undefined) ? widgetSettings.tooltipShowCpuCores : widgetMetadata.tooltipShowCpuCores
+  readonly property bool tooltipShowCpuTemp: (widgetSettings.tooltipShowCpuTemp !== undefined) ? widgetSettings.tooltipShowCpuTemp : widgetMetadata.tooltipShowCpuTemp
+  readonly property bool tooltipShowGpuTemp: (widgetSettings.tooltipShowGpuTemp !== undefined) ? widgetSettings.tooltipShowGpuTemp : widgetMetadata.tooltipShowGpuTemp
+  readonly property bool tooltipShowGpuUsage: (widgetSettings.tooltipShowGpuUsage !== undefined) ? widgetSettings.tooltipShowGpuUsage : widgetMetadata.tooltipShowGpuUsage
+  readonly property bool tooltipShowGpuVram: (widgetSettings.tooltipShowGpuVram !== undefined) ? widgetSettings.tooltipShowGpuVram : widgetMetadata.tooltipShowGpuVram
+  readonly property bool tooltipShowLoadAverage: (widgetSettings.tooltipShowLoadAverage !== undefined) ? widgetSettings.tooltipShowLoadAverage : widgetMetadata.tooltipShowLoadAverage
+  readonly property bool tooltipShowMemory: (widgetSettings.tooltipShowMemory !== undefined) ? widgetSettings.tooltipShowMemory : widgetMetadata.tooltipShowMemory
+  readonly property bool tooltipShowSwap: (widgetSettings.tooltipShowSwap !== undefined) ? widgetSettings.tooltipShowSwap : widgetMetadata.tooltipShowSwap
+  readonly property bool tooltipShowNetwork: (widgetSettings.tooltipShowNetwork !== undefined) ? widgetSettings.tooltipShowNetwork : widgetMetadata.tooltipShowNetwork
+  readonly property bool tooltipShowDisk: (widgetSettings.tooltipShowDisk !== undefined) ? widgetSettings.tooltipShowDisk : widgetMetadata.tooltipShowDisk
+
   readonly property string fontFamily: useMonospaceFont ? Settings.data.ui.fontFixed : Settings.data.ui.fontDefault
 
   readonly property int paddingPercent: usePadding ? String("100%").length : 0
@@ -91,58 +104,64 @@ Item {
     Quickshell.execDetached(["sh", "-c", Settings.data.systemMonitor.externalMonitor]);
   }
 
-  // Build comprehensive tooltip text with all stats
+  // Build tooltip rows. Each row is gated on a per-widget-instance tooltipShow* flag
+  // (defaults true) AND its sensor-availability check (so disabling a row in the bar
+  // doesn't force-show it here, and enabling a row doesn't surface it when the sensor
+  // doesn't exist).
   function buildTooltipContent() {
     let rows = [];
 
-    // CPU
-    rows.push([I18n.tr("system-monitor.cpu-usage"), `${Math.round(SystemStatService.cpuUsage)}% (${SystemStatService.cpuFreq.replace(/[^0-9.]/g, "")} GHz)`]);
-    if (showCpuCores) {
-      SystemStatService.coresUsage.forEach((usage, core) => rows.push(["  " + I18n.tr("system-monitor.core-usage", {
-                                                                                        "id": core
-                                                                                      }), `${Math.round(usage)}%`]));
+    if (tooltipShowCpuUsage) {
+      rows.push([I18n.tr("system-monitor.cpu-usage"), `${Math.round(SystemStatService.cpuUsage)}% (${SystemStatService.cpuFreq.replace(/[^0-9.]/g, "")} GHz)`]);
+      if (tooltipShowCpuCores) {
+        SystemStatService.coresUsage.forEach((usage, core) => rows.push(["  " + I18n.tr("system-monitor.core-usage", {
+                                                                                          "id": core
+                                                                                        }), `${Math.round(usage)}%`]));
+      }
     }
 
-    if (SystemStatService.cpuTemp > 0) {
+    if (tooltipShowCpuTemp && SystemStatService.cpuTemp > 0) {
       rows.push([I18n.tr("system-monitor.cpu-temp"), `${Math.round(SystemStatService.cpuTemp)}°C`]);
     }
 
-    // GPU (if available)
     if (SystemStatService.gpuAvailable) {
-      rows.push([I18n.tr("system-monitor.gpu-temp"), `${Math.round(SystemStatService.gpuTemp)}°C`]);
-      if (SystemStatService.gpuUsageAvailable) {
+      if (tooltipShowGpuTemp) {
+        rows.push([I18n.tr("system-monitor.gpu-temp"), `${Math.round(SystemStatService.gpuTemp)}°C`]);
+      }
+      if (tooltipShowGpuUsage && SystemStatService.gpuUsageAvailable) {
         rows.push([I18n.tr("system-monitor.gpu-usage"), `${Math.round(SystemStatService.gpuUsage)}%`]);
       }
-      if (SystemStatService.gpuVramAvailable) {
+      if (tooltipShowGpuVram && SystemStatService.gpuVramAvailable) {
         rows.push([I18n.tr("system-monitor.gpu-vram"), `${Math.round(SystemStatService.gpuVramPercent)}% (${SystemStatService.gpuVramUsedGb.toFixed(1)} / ${SystemStatService.gpuVramTotalGb.toFixed(1)} GB)`]);
       }
     }
 
-    // Load Average
-    if (SystemStatService.loadAvg1 >= 0) {
+    if (tooltipShowLoadAverage && SystemStatService.loadAvg1 >= 0) {
       rows.push([I18n.tr("system-monitor.load-average"), `${SystemStatService.loadAvg1.toFixed(2)} · ${SystemStatService.loadAvg5.toFixed(2)} · ${SystemStatService.loadAvg15.toFixed(2)}`]);
     }
 
-    // Memory
-    rows.push([I18n.tr("common.memory"), `${Math.round(SystemStatService.memPercent)}% (${(SystemStatService.memGb).toFixed(1)} GiB)`]);
+    if (tooltipShowMemory) {
+      rows.push([I18n.tr("common.memory"), `${Math.round(SystemStatService.memPercent)}% (${(SystemStatService.memGb).toFixed(1)} GiB)`]);
+    }
 
-    // Swap (if available)
-    if (SystemStatService.swapTotalGb > 0) {
+    if (tooltipShowSwap && SystemStatService.swapTotalGb > 0) {
       rows.push([I18n.tr("bar.system-monitor.swap-usage-label"), `${Math.round(SystemStatService.swapPercent)}% (${(SystemStatService.swapGb).toFixed(1)} GiB)`]);
     }
 
-    // Network
-    rows.push([I18n.tr("system-monitor.download-speed"), `${SystemStatService.formatSpeed(SystemStatService.rxSpeed).replace(/([0-9.]+)([A-Za-z]+)/, "$1 $2")}` + "/s"]);
-    rows.push([I18n.tr("system-monitor.upload-speed"), `${SystemStatService.formatSpeed(SystemStatService.txSpeed).replace(/([0-9.]+)([A-Za-z]+)/, "$1 $2")}` + "/s"]);
+    if (tooltipShowNetwork) {
+      rows.push([I18n.tr("system-monitor.download-speed"), `${SystemStatService.formatSpeed(SystemStatService.rxSpeed).replace(/([0-9.]+)([A-Za-z]+)/, "$1 $2")}` + "/s"]);
+      rows.push([I18n.tr("system-monitor.upload-speed"), `${SystemStatService.formatSpeed(SystemStatService.txSpeed).replace(/([0-9.]+)([A-Za-z]+)/, "$1 $2")}` + "/s"]);
+    }
 
-    // Disk
-    const diskPercent = SystemStatService.diskPercents[diskPath];
-    if (diskPercent !== undefined) {
-      const usedGb = SystemStatService.diskUsedGb[diskPath] || 0;
-      const sizeGb = SystemStatService.diskSizeGb[diskPath] || 0;
-      const availGb = SystemStatService.diskAvailableGb[diskPath] || 0;
-      rows.push([I18n.tr("system-monitor.disk"), `${diskPercent}% (${usedGb.toFixed(1)} / ${sizeGb.toFixed(1)} GB)`]);
-      rows.push([I18n.tr("common.available"), `${availGb.toFixed(1)} GB`]);
+    if (tooltipShowDisk) {
+      const diskPercent = SystemStatService.diskPercents[diskPath];
+      if (diskPercent !== undefined) {
+        const usedGb = SystemStatService.diskUsedGb[diskPath] || 0;
+        const sizeGb = SystemStatService.diskSizeGb[diskPath] || 0;
+        const availGb = SystemStatService.diskAvailableGb[diskPath] || 0;
+        rows.push([I18n.tr("system-monitor.disk"), `${diskPercent}% (${usedGb.toFixed(1)} / ${sizeGb.toFixed(1)} GB)`]);
+        rows.push([I18n.tr("common.available"), `${availGb.toFixed(1)} GB`]);
+      }
     }
 
     return rows;
@@ -1086,8 +1105,11 @@ Item {
                }
     onEntered: {
       if (!PanelService.getPanel("systemStatsPanel", screen).isPanelOpen) {
-        TooltipService.show(root, buildTooltipContent(), BarService.getTooltipDirection(root.screen?.name));
-        tooltipRefreshTimer.start();
+        const rows = buildTooltipContent();
+        if (rows.length > 0) {
+          TooltipService.show(root, rows, BarService.getTooltipDirection(root.screen?.name));
+          tooltipRefreshTimer.start();
+        }
       }
     }
     onExited: {
@@ -1102,7 +1124,10 @@ Item {
     repeat: true
     onTriggered: {
       if (tooltipArea.containsMouse) {
-        TooltipService.updateText(buildTooltipContent());
+        const rows = buildTooltipContent();
+        if (rows.length > 0) {
+          TooltipService.updateText(rows);
+        }
       }
     }
   }

@@ -252,7 +252,18 @@ Singleton {
                                     "showDiskUsage": false,
                                     "showDiskUsageAsPercent": false,
                                     "showDiskAvailable": false,
-                                    "diskPath": "/"
+                                    "diskPath": "/",
+                                    "tooltipShowCpuUsage": true,
+                                    "tooltipShowCpuCores": true,
+                                    "tooltipShowCpuTemp": true,
+                                    "tooltipShowGpuTemp": true,
+                                    "tooltipShowGpuUsage": true,
+                                    "tooltipShowGpuVram": true,
+                                    "tooltipShowLoadAverage": true,
+                                    "tooltipShowMemory": true,
+                                    "tooltipShowSwap": true,
+                                    "tooltipShowNetwork": true,
+                                    "tooltipShowDisk": true
                                   },
                                   "Taskbar": {
                                     "onlySameOutput": true,

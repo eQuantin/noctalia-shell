@@ -42,6 +42,18 @@ ColumnLayout {
   property bool valueShowDiskAvailable: widgetData.showDiskAvailable !== undefined ? widgetData.showDiskAvailable : widgetMetadata.showDiskAvailable
   property string valueDiskPath: widgetData.diskPath !== undefined ? widgetData.diskPath : widgetMetadata.diskPath
 
+  property bool valueTooltipShowCpuUsage: widgetData.tooltipShowCpuUsage !== undefined ? widgetData.tooltipShowCpuUsage : widgetMetadata.tooltipShowCpuUsage
+  property bool valueTooltipShowCpuCores: widgetData.tooltipShowCpuCores !== undefined ? widgetData.tooltipShowCpuCores : widgetMetadata.tooltipShowCpuCores
+  property bool valueTooltipShowCpuTemp: widgetData.tooltipShowCpuTemp !== undefined ? widgetData.tooltipShowCpuTemp : widgetMetadata.tooltipShowCpuTemp
+  property bool valueTooltipShowGpuTemp: widgetData.tooltipShowGpuTemp !== undefined ? widgetData.tooltipShowGpuTemp : widgetMetadata.tooltipShowGpuTemp
+  property bool valueTooltipShowGpuUsage: widgetData.tooltipShowGpuUsage !== undefined ? widgetData.tooltipShowGpuUsage : widgetMetadata.tooltipShowGpuUsage
+  property bool valueTooltipShowGpuVram: widgetData.tooltipShowGpuVram !== undefined ? widgetData.tooltipShowGpuVram : widgetMetadata.tooltipShowGpuVram
+  property bool valueTooltipShowLoadAverage: widgetData.tooltipShowLoadAverage !== undefined ? widgetData.tooltipShowLoadAverage : widgetMetadata.tooltipShowLoadAverage
+  property bool valueTooltipShowMemory: widgetData.tooltipShowMemory !== undefined ? widgetData.tooltipShowMemory : widgetMetadata.tooltipShowMemory
+  property bool valueTooltipShowSwap: widgetData.tooltipShowSwap !== undefined ? widgetData.tooltipShowSwap : widgetMetadata.tooltipShowSwap
+  property bool valueTooltipShowNetwork: widgetData.tooltipShowNetwork !== undefined ? widgetData.tooltipShowNetwork : widgetMetadata.tooltipShowNetwork
+  property bool valueTooltipShowDisk: widgetData.tooltipShowDisk !== undefined ? widgetData.tooltipShowDisk : widgetMetadata.tooltipShowDisk
+
   function saveSettings() {
     var settings = Object.assign({}, widgetData || {});
     settings.compactMode = valueCompactMode;
@@ -65,6 +77,18 @@ ColumnLayout {
     settings.showDiskUsageAsPercent = valueShowDiskUsageAsPercent;
     settings.showDiskAvailable = valueShowDiskAvailable;
     settings.diskPath = valueDiskPath;
+
+    settings.tooltipShowCpuUsage = valueTooltipShowCpuUsage;
+    settings.tooltipShowCpuCores = valueTooltipShowCpuCores;
+    settings.tooltipShowCpuTemp = valueTooltipShowCpuTemp;
+    settings.tooltipShowGpuTemp = valueTooltipShowGpuTemp;
+    settings.tooltipShowGpuUsage = valueTooltipShowGpuUsage;
+    settings.tooltipShowGpuVram = valueTooltipShowGpuVram;
+    settings.tooltipShowLoadAverage = valueTooltipShowLoadAverage;
+    settings.tooltipShowMemory = valueTooltipShowMemory;
+    settings.tooltipShowSwap = valueTooltipShowSwap;
+    settings.tooltipShowNetwork = valueTooltipShowNetwork;
+    settings.tooltipShowDisk = valueTooltipShowDisk;
 
     settingsChanged(settings);
   }
@@ -353,5 +377,150 @@ ColumnLayout {
                   saveSettings();
                 }
     defaultValue: widgetMetadata.diskPath
+  }
+
+  NDivider {
+    Layout.fillWidth: true
+  }
+
+  NLabel {
+    label: I18n.tr("bar.system-monitor.tooltip-section-label")
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-cpu-usage-label")
+    description: I18n.tr("bar.system-monitor.tooltip-cpu-usage-description")
+    checked: valueTooltipShowCpuUsage
+    onToggled: checked => {
+                 valueTooltipShowCpuUsage = checked;
+                 saveSettings();
+               }
+    defaultValue: widgetMetadata.tooltipShowCpuUsage
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-cpu-cores-label")
+    description: I18n.tr("bar.system-monitor.tooltip-cpu-cores-description")
+    checked: valueTooltipShowCpuCores
+    onToggled: checked => {
+                 valueTooltipShowCpuCores = checked;
+                 saveSettings();
+               }
+    visible: valueTooltipShowCpuUsage
+    defaultValue: widgetMetadata.tooltipShowCpuCores
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-cpu-temp-label")
+    description: I18n.tr("bar.system-monitor.tooltip-cpu-temp-description")
+    checked: valueTooltipShowCpuTemp
+    onToggled: checked => {
+                 valueTooltipShowCpuTemp = checked;
+                 saveSettings();
+               }
+    defaultValue: widgetMetadata.tooltipShowCpuTemp
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-gpu-temp-label")
+    description: I18n.tr("bar.system-monitor.tooltip-gpu-temp-description")
+    checked: valueTooltipShowGpuTemp
+    onToggled: checked => {
+                 valueTooltipShowGpuTemp = checked;
+                 saveSettings();
+               }
+    visible: SystemStatService.gpuAvailable
+    defaultValue: widgetMetadata.tooltipShowGpuTemp
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-gpu-usage-label")
+    description: I18n.tr("bar.system-monitor.tooltip-gpu-usage-description")
+    checked: valueTooltipShowGpuUsage
+    onToggled: checked => {
+                 valueTooltipShowGpuUsage = checked;
+                 saveSettings();
+               }
+    visible: SystemStatService.gpuAvailable && SystemStatService.gpuUsageAvailable
+    defaultValue: widgetMetadata.tooltipShowGpuUsage
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-gpu-vram-label")
+    description: I18n.tr("bar.system-monitor.tooltip-gpu-vram-description")
+    checked: valueTooltipShowGpuVram
+    onToggled: checked => {
+                 valueTooltipShowGpuVram = checked;
+                 saveSettings();
+               }
+    visible: SystemStatService.gpuAvailable && SystemStatService.gpuVramAvailable
+    defaultValue: widgetMetadata.tooltipShowGpuVram
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-load-average-label")
+    description: I18n.tr("bar.system-monitor.tooltip-load-average-description")
+    checked: valueTooltipShowLoadAverage
+    onToggled: checked => {
+                 valueTooltipShowLoadAverage = checked;
+                 saveSettings();
+               }
+    defaultValue: widgetMetadata.tooltipShowLoadAverage
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-memory-label")
+    description: I18n.tr("bar.system-monitor.tooltip-memory-description")
+    checked: valueTooltipShowMemory
+    onToggled: checked => {
+                 valueTooltipShowMemory = checked;
+                 saveSettings();
+               }
+    defaultValue: widgetMetadata.tooltipShowMemory
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-swap-label")
+    description: I18n.tr("bar.system-monitor.tooltip-swap-description")
+    checked: valueTooltipShowSwap
+    onToggled: checked => {
+                 valueTooltipShowSwap = checked;
+                 saveSettings();
+               }
+    visible: SystemStatService.swapTotalGb > 0
+    defaultValue: widgetMetadata.tooltipShowSwap
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-network-label")
+    description: I18n.tr("bar.system-monitor.tooltip-network-description")
+    checked: valueTooltipShowNetwork
+    onToggled: checked => {
+                 valueTooltipShowNetwork = checked;
+                 saveSettings();
+               }
+    defaultValue: widgetMetadata.tooltipShowNetwork
+  }
+
+  NToggle {
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.tooltip-disk-label")
+    description: I18n.tr("bar.system-monitor.tooltip-disk-description")
+    checked: valueTooltipShowDisk
+    onToggled: checked => {
+                 valueTooltipShowDisk = checked;
+                 saveSettings();
+               }
+    defaultValue: widgetMetadata.tooltipShowDisk
   }
 }
