@@ -45,6 +45,8 @@ Singleton {
   property real cpuFreqRatio: 0
   property real cpuGlobalMaxFreq: 3.5
   property real gpuTemp: 0
+  property real gpuUsage: 0
+  property bool gpuUsageAvailable: false // True once we've read a valid value; false for thermal_zone fallback
   property bool gpuAvailable: false
   property string gpuType: "" // "amd", "intel", "nvidia"
   property real memGb: 0
@@ -81,6 +83,7 @@ Singleton {
   property var cpuHistory: new Array(cpuHistoryLength).fill(0)
   property var cpuTempHistory: new Array(cpuHistoryLength).fill(40)  // Reasonable default temp
   property var gpuTempHistory: new Array(gpuHistoryLength).fill(40)  // Reasonable default temp
+  property var gpuUsageHistory: new Array(gpuHistoryLength).fill(0)
   property var memHistory: new Array(memHistoryLength).fill(0)
   property var diskHistories: ({}) // Keyed by mount path, initialized on first update
   property var rxSpeedHistory: new Array(networkHistoryLength).fill(0)
@@ -131,6 +134,14 @@ Singleton {
     if (h.length > gpuHistoryLength)
       h.shift();
     gpuTempHistory = h;
+  }
+
+  function pushGpuUsageHistory() {
+    let h = gpuUsageHistory.slice();
+    h.push(gpuUsage);
+    if (h.length > gpuHistoryLength)
+      h.shift();
+    gpuUsageHistory = h;
   }
 
   function pushMemHistory() {
@@ -339,6 +350,8 @@ Singleton {
     root.gpuType = "";
     root.gpuTempHwmonPath = "";
     root.gpuTemp = 0;
+    root.gpuUsage = 0;
+    root.gpuUsageAvailable = false;
     root.foundGpuSensors = [];
     root.gpuVramCheckIndex = 0;
 
@@ -418,14 +431,19 @@ Singleton {
     onTriggered: netDevFile.reload()
   }
 
-  // Timer for GPU temperature
+  // Timer for GPU temperature and usage (same cadence — both are cheap sysfs reads
+  // on AMD/Intel, and nvidia-smi invocations are batched by virtue of being separate
+  // Process instances that complete asynchronously)
   Timer {
     id: gpuTempTimer
     interval: root.gpuIntervalMs
     repeat: true
     running: root.shouldRun && root.gpuAvailable
     triggeredOnStart: true
-    onTriggered: updateGpuTemperature()
+    onTriggered: {
+      updateGpuTemperature();
+      updateGpuUsage();
+    }
   }
 
   // --------------------------------------------
@@ -970,6 +988,47 @@ Singleton {
     }
   }
 
+  // ----
+  // #5 - Read GPU usage (%) — sysfs gpu_busy_percent for AMD/Intel, nvidia-smi for NVIDIA.
+  // The hwmon/device symlink resolves to the same PCI node as /sys/class/drm/card*/device,
+  // so ${gpuTempHwmonPath}/device/gpu_busy_percent targets the exact GPU we selected
+  // during detection — no card* globbing needed.
+  FileView {
+    id: gpuUsageReader
+    printErrors: false
+
+    onLoaded: {
+      const value = parseInt(text().trim());
+      if (!isNaN(value)) {
+        root.gpuUsage = Math.max(0, Math.min(100, value));
+        root.gpuUsageAvailable = true;
+        root.pushGpuUsageHistory();
+      }
+    }
+
+    onLoadFailed: function (error) {
+      // gpu_busy_percent isn't exposed on all kernels / driver versions; leave
+      // usage at 0 and flag unavailable so the widget can hide the row.
+      root.gpuUsageAvailable = false;
+    }
+  }
+
+  Process {
+    id: nvidiaUsageProcess
+    command: ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"]
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const value = parseInt(text.trim());
+        if (!isNaN(value)) {
+          root.gpuUsage = Math.max(0, Math.min(100, value));
+          root.gpuUsageAvailable = true;
+          root.pushGpuUsageHistory();
+        }
+      }
+    }
+  }
+
   // -------------------------------------------------------
   // -------------------------------------------------------
   // Parse ZFS ARC stats from /proc/spl/kstat/zfs/arcstats
@@ -1501,6 +1560,18 @@ Singleton {
         gpuThermalZoneReader.path = root.gpuThermalZonePath;
         gpuThermalZoneReader.reload();
       }
+    }
+  }
+
+  // -------------------------------------------------------
+  // Function to update GPU usage (%). Thermal-zone-only GPUs (ARM SoCs etc.) have
+  // no usage counter exposed; they keep gpuUsageAvailable=false and the UI hides.
+  function updateGpuUsage() {
+    if (root.gpuType === "nvidia") {
+      nvidiaUsageProcess.running = true;
+    } else if (root.gpuType === "amd" || root.gpuType === "intel") {
+      gpuUsageReader.path = `${root.gpuTempHwmonPath}/device/gpu_busy_percent`;
+      gpuUsageReader.reload();
     }
   }
 }

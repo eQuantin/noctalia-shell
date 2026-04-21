@@ -51,6 +51,7 @@ Item {
   readonly property bool showCpuFreq: (widgetSettings.showCpuFreq !== undefined) ? widgetSettings.showCpuFreq : widgetMetadata.showCpuFreq
   readonly property bool showCpuTemp: (widgetSettings.showCpuTemp !== undefined) ? widgetSettings.showCpuTemp : widgetMetadata.showCpuTemp
   readonly property bool showGpuTemp: (widgetSettings.showGpuTemp !== undefined) ? widgetSettings.showGpuTemp : widgetMetadata.showGpuTemp
+  readonly property bool showGpuUsage: (widgetSettings.showGpuUsage !== undefined) ? widgetSettings.showGpuUsage : widgetMetadata.showGpuUsage
   readonly property bool showMemoryUsage: (widgetSettings.showMemoryUsage !== undefined) ? widgetSettings.showMemoryUsage : widgetMetadata.showMemoryUsage
   readonly property bool showMemoryAsPercent: (widgetSettings.showMemoryAsPercent !== undefined) ? widgetSettings.showMemoryAsPercent : widgetMetadata.showMemoryAsPercent
   readonly property bool showSwapUsage: (widgetSettings.showSwapUsage !== undefined) ? widgetSettings.showSwapUsage : widgetMetadata.showSwapUsage
@@ -108,6 +109,9 @@ Item {
     // GPU (if available)
     if (SystemStatService.gpuAvailable) {
       rows.push([I18n.tr("system-monitor.gpu-temp"), `${Math.round(SystemStatService.gpuTemp)}°C`]);
+      if (SystemStatService.gpuUsageAvailable) {
+        rows.push([I18n.tr("system-monitor.gpu-usage"), `${Math.round(SystemStatService.gpuUsage)}%`]);
+      }
     }
 
     // Load Average
@@ -502,6 +506,73 @@ Item {
             onLoaded: {
               item.ratio = Qt.binding(() => SystemStatService.gpuTemp / 100);
               item.fillColor = Qt.binding(() => SystemStatService.gpuColor);
+            }
+          }
+        }
+      }
+
+      // GPU Usage Component
+      Item {
+        id: gpuUsageContainer
+        implicitWidth: gpuUsageContent.implicitWidth
+        implicitHeight: gpuUsageContent.implicitHeight
+        Layout.preferredWidth: isVertical ? root.width : implicitWidth
+        Layout.preferredHeight: compactMode ? implicitHeight : capsuleHeight
+        Layout.alignment: isVertical ? Qt.AlignHCenter : Qt.AlignVCenter
+        visible: showGpuUsage && SystemStatService.gpuAvailable && SystemStatService.gpuUsageAvailable
+
+        GridLayout {
+          id: gpuUsageContent
+          anchors.centerIn: parent
+          flow: (isVertical && !compactMode) ? GridLayout.TopToBottom : GridLayout.LeftToRight
+          rows: (isVertical && !compactMode) ? 2 : 1
+          columns: (isVertical && !compactMode) ? 1 : 2
+          rowSpacing: Style.marginXXS
+          columnSpacing: compactMode ? 3 : Style.marginXS
+
+          Item {
+            Layout.preferredWidth: iconSize
+            Layout.preferredHeight: (compactMode || isVertical) ? iconSize : capsuleHeight
+            Layout.alignment: Qt.AlignCenter
+            Layout.row: (isVertical && !compactMode) ? 1 : 0
+            Layout.column: 0
+
+            NIcon {
+              icon: "gpu-usage"
+              pointSize: iconSize
+              applyUiScale: false
+              x: Style.pixelAlignCenter(parent.width, width)
+              y: Style.pixelAlignCenter(parent.height, contentHeight)
+              color: root.iconColor
+            }
+          }
+
+          // Text mode
+          NText {
+            visible: !compactMode
+            text: `${Math.round(SystemStatService.gpuUsage)}%`.padStart(paddingPercent, " ")
+            family: fontFamily
+            pointSize: barFontSize
+            applyUiScale: false
+            Layout.alignment: Qt.AlignCenter
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            color: root.textColor
+            Layout.row: isVertical ? 0 : 0
+            Layout.column: isVertical ? 0 : 1
+          }
+
+          // Compact mode
+          Loader {
+            active: compactMode
+            visible: compactMode
+            sourceComponent: miniGaugeComponent
+            Layout.alignment: Qt.AlignCenter
+            Layout.row: 0
+            Layout.column: 1
+
+            onLoaded: {
+              item.ratio = Qt.binding(() => SystemStatService.gpuUsage / 100);
             }
           }
         }
