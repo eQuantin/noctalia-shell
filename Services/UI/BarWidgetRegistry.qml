@@ -243,6 +243,7 @@ Singleton {
                                     "showCpuTemp": true,
                                     "showGpuTemp": false,
                                     "showGpuUsage": false,
+                                    "showGpuVram": false,
                                     "showLoadAverage": false,
                                     "showMemoryUsage": true,
                                     "showMemoryAsPercent": false,

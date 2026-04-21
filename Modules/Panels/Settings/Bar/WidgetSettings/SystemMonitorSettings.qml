@@ -31,6 +31,7 @@ ColumnLayout {
   property bool valueShowCpuTemp: widgetData.showCpuTemp !== undefined ? widgetData.showCpuTemp : widgetMetadata.showCpuTemp
   property bool valueShowGpuTemp: widgetData.showGpuTemp !== undefined ? widgetData.showGpuTemp : widgetMetadata.showGpuTemp
   property bool valueShowGpuUsage: widgetData.showGpuUsage !== undefined ? widgetData.showGpuUsage : widgetMetadata.showGpuUsage
+  property bool valueShowGpuVram: widgetData.showGpuVram !== undefined ? widgetData.showGpuVram : widgetMetadata.showGpuVram
   property bool valueShowLoadAverage: widgetData.showLoadAverage !== undefined ? widgetData.showLoadAverage : widgetMetadata.showLoadAverage
   property bool valueShowMemoryUsage: widgetData.showMemoryUsage !== undefined ? widgetData.showMemoryUsage : widgetMetadata.showMemoryUsage
   property bool valueShowMemoryAsPercent: widgetData.showMemoryAsPercent !== undefined ? widgetData.showMemoryAsPercent : widgetMetadata.showMemoryAsPercent
@@ -54,6 +55,7 @@ ColumnLayout {
     settings.showCpuTemp = valueShowCpuTemp;
     settings.showGpuTemp = valueShowGpuTemp;
     settings.showGpuUsage = valueShowGpuUsage;
+    settings.showGpuVram = valueShowGpuVram;
     settings.showLoadAverage = valueShowLoadAverage;
     settings.showMemoryUsage = valueShowMemoryUsage;
     settings.showMemoryAsPercent = valueShowMemoryAsPercent;
@@ -221,6 +223,20 @@ ColumnLayout {
                }
     visible: SystemStatService.gpuAvailable && SystemStatService.gpuUsageAvailable
     defaultValue: widgetMetadata.showGpuUsage
+  }
+
+  NToggle {
+    id: showGpuVram
+    Layout.fillWidth: true
+    label: I18n.tr("bar.system-monitor.gpu-vram-label")
+    description: I18n.tr("bar.system-monitor.gpu-vram-description")
+    checked: valueShowGpuVram
+    onToggled: checked => {
+                 valueShowGpuVram = checked;
+                 saveSettings();
+               }
+    visible: SystemStatService.gpuAvailable && SystemStatService.gpuVramAvailable
+    defaultValue: widgetMetadata.showGpuVram
   }
 
   NToggle {

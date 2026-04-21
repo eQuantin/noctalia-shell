@@ -47,6 +47,10 @@ Singleton {
   property real gpuTemp: 0
   property real gpuUsage: 0
   property bool gpuUsageAvailable: false // True once we've read a valid value; false for thermal_zone fallback
+  property real gpuVramUsedGb: 0
+  property real gpuVramTotalGb: 0
+  property real gpuVramPercent: 0
+  property bool gpuVramAvailable: false
   property bool gpuAvailable: false
   property string gpuType: "" // "amd", "intel", "nvidia"
   property real memGb: 0
@@ -84,6 +88,7 @@ Singleton {
   property var cpuTempHistory: new Array(cpuHistoryLength).fill(40)  // Reasonable default temp
   property var gpuTempHistory: new Array(gpuHistoryLength).fill(40)  // Reasonable default temp
   property var gpuUsageHistory: new Array(gpuHistoryLength).fill(0)
+  property var gpuVramHistory: new Array(gpuHistoryLength).fill(0)
   property var memHistory: new Array(memHistoryLength).fill(0)
   property var diskHistories: ({}) // Keyed by mount path, initialized on first update
   property var rxSpeedHistory: new Array(networkHistoryLength).fill(0)
@@ -142,6 +147,14 @@ Singleton {
     if (h.length > gpuHistoryLength)
       h.shift();
     gpuUsageHistory = h;
+  }
+
+  function pushGpuVramHistory() {
+    let h = gpuVramHistory.slice();
+    h.push(gpuVramPercent);
+    if (h.length > gpuHistoryLength)
+      h.shift();
+    gpuVramHistory = h;
   }
 
   function pushMemHistory() {
@@ -352,6 +365,10 @@ Singleton {
     root.gpuTemp = 0;
     root.gpuUsage = 0;
     root.gpuUsageAvailable = false;
+    root.gpuVramUsedGb = 0;
+    root.gpuVramTotalGb = 0;
+    root.gpuVramPercent = 0;
+    root.gpuVramAvailable = false;
     root.foundGpuSensors = [];
     root.gpuVramCheckIndex = 0;
 
@@ -443,6 +460,7 @@ Singleton {
     onTriggered: {
       updateGpuTemperature();
       updateGpuUsage();
+      updateGpuVram();
     }
   }
 
@@ -1029,6 +1047,71 @@ Singleton {
     }
   }
 
+  // ----
+  // #6 - Read GPU VRAM usage — sysfs mem_info_vram_{used,total} for AMD/Intel,
+  // nvidia-smi for NVIDIA. Values are in bytes on sysfs, converted to decimal GB
+  // (10^9) to match the memory widget's convention.
+  FileView {
+    id: gpuVramUsedReader
+    printErrors: false
+
+    onLoaded: {
+      const bytes = parseFloat(text().trim());
+      if (!isNaN(bytes) && bytes >= 0) {
+        root.gpuVramUsedGb = bytes / 1e9;
+        computeGpuVramPercent();
+      }
+    }
+
+    onLoadFailed: function (error) {
+      root.gpuVramAvailable = false;
+    }
+  }
+
+  FileView {
+    id: gpuVramTotalReader
+    printErrors: false
+
+    onLoaded: {
+      const bytes = parseFloat(text().trim());
+      if (!isNaN(bytes) && bytes > 0) {
+        root.gpuVramTotalGb = bytes / 1e9;
+        root.gpuVramAvailable = true;
+        computeGpuVramPercent();
+      }
+    }
+
+    onLoadFailed: function (error) {
+      root.gpuVramAvailable = false;
+    }
+  }
+
+  Process {
+    id: nvidiaVramProcess
+    // memory.used and memory.total report in MiB by default
+    command: ["nvidia-smi", "--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"]
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const parts = text.trim().split(",").map(s => parseFloat(s.trim()));
+        if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] > 0) {
+          // Convert MiB -> decimal GB: MiB * 1048576 / 1e9
+          root.gpuVramUsedGb = (parts[0] * 1048576) / 1e9;
+          root.gpuVramTotalGb = (parts[1] * 1048576) / 1e9;
+          root.gpuVramAvailable = true;
+          computeGpuVramPercent();
+        }
+      }
+    }
+  }
+
+  function computeGpuVramPercent() {
+    if (root.gpuVramTotalGb > 0) {
+      root.gpuVramPercent = Math.round((root.gpuVramUsedGb / root.gpuVramTotalGb) * 100);
+      root.pushGpuVramHistory();
+    }
+  }
+
   // -------------------------------------------------------
   // -------------------------------------------------------
   // Parse ZFS ARC stats from /proc/spl/kstat/zfs/arcstats
@@ -1572,6 +1655,21 @@ Singleton {
     } else if (root.gpuType === "amd" || root.gpuType === "intel") {
       gpuUsageReader.path = `${root.gpuTempHwmonPath}/device/gpu_busy_percent`;
       gpuUsageReader.reload();
+    }
+  }
+
+  // -------------------------------------------------------
+  // Function to update GPU VRAM (used/total). Integrated GPUs (AMD iGPU without
+  // dedicated VRAM) won't expose mem_info_vram_* — load failures flip
+  // gpuVramAvailable=false and the UI hides the row.
+  function updateGpuVram() {
+    if (root.gpuType === "nvidia") {
+      nvidiaVramProcess.running = true;
+    } else if (root.gpuType === "amd" || root.gpuType === "intel") {
+      gpuVramUsedReader.path = `${root.gpuTempHwmonPath}/device/mem_info_vram_used`;
+      gpuVramTotalReader.path = `${root.gpuTempHwmonPath}/device/mem_info_vram_total`;
+      gpuVramUsedReader.reload();
+      gpuVramTotalReader.reload();
     }
   }
 }

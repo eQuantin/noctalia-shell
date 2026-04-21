@@ -38,6 +38,7 @@ Singleton {
     "cpu-temperature": "flame",
     "gpu-temperature": "device-desktop",
     "gpu-usage": "activity",
+    "gpu-vram": "device-sd-card",
     "memory": "cpu",
     "performance": "gauge",
     "balanced": "scale",
