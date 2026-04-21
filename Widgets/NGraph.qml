@@ -14,6 +14,10 @@ Item {
   property var values2: []
   property color color2: Color.mError
 
+  // Optional tertiary line
+  property var values3: []
+  property color color3: Color.mTertiary
+
   // Range settings for primary line
   property real minValue: 0
   property real maxValue: 100
@@ -21,6 +25,10 @@ Item {
   // Range settings for secondary line (defaults to primary range)
   property real minValue2: minValue
   property real maxValue2: maxValue
+
+  // Range settings for tertiary line (defaults to primary range)
+  property real minValue3: minValue
+  property real maxValue3: maxValue
 
   // Style settings
   property real strokeWidth: 1
@@ -39,12 +47,15 @@ Item {
 
   readonly property bool hasData: values.length >= 4
   readonly property bool hasData2: values2.length >= 4
+  readonly property bool hasData3: values3.length >= 4
 
   // Scale animation state
   property real _targetMax1: maxValue
   property real _targetMax2: maxValue2
+  property real _targetMax3: maxValue3
   property real _animMax1: maxValue
   property real _animMax2: maxValue2
+  property real _animMax3: maxValue3
 
   onMaxValueChanged: {
     _targetMax1 = maxValue;
@@ -64,9 +75,19 @@ Item {
     }
   }
 
+  onMaxValue3Changed: {
+    _targetMax3 = maxValue3;
+    if (animateScale && _ready3) {
+      _scaleTimer.start();
+    } else {
+      _animMax3 = maxValue3;
+    }
+  }
+
   // Effective max values (animated or direct)
   readonly property real _effectiveMax1: animateScale ? _animMax1 : maxValue
   readonly property real _effectiveMax2: animateScale ? _animMax2 : maxValue2
+  readonly property real _effectiveMax3: animateScale ? _animMax3 : maxValue3
 
   // Scroll state (driven by NumberAnimation)
   property real _t1: 1.0
@@ -76,6 +97,10 @@ Item {
   property real _t2: 1.0
   property bool _ready2: false
   property real _pred2: 0
+
+  property real _t3: 1.0
+  property bool _ready3: false
+  property real _pred3: 0
 
   // Frame-accurate scroll animations tied to Qt's render loop
   NumberAnimation {
@@ -91,6 +116,15 @@ Item {
     id: _scrollAnim2
     target: root
     property: "_t2"
+    from: 0
+    to: 1
+    duration: root.updateInterval
+  }
+
+  NumberAnimation {
+    id: _scrollAnim3
+    target: root
+    property: "_t3"
     from: 0
     to: 1
     duration: root.updateInterval
@@ -122,6 +156,19 @@ Item {
     _scrollAnim2.restart();
   }
 
+  onValues3Changed: {
+    if (values3.length < 4)
+      return;
+
+    const last = values3[values3.length - 1];
+    const prev = values3[values3.length - 2];
+    _pred3 = Math.max(minValue3, last + (last - prev) * 0.5);
+
+    if (!_ready3)
+      _ready3 = true;
+    _scrollAnim3.restart();
+  }
+
   // Scale animation timer (only needed for animateScale mode)
   Timer {
     id: _scaleTimer
@@ -147,6 +194,13 @@ Item {
         root._animMax2 = root._targetMax2;
       }
 
+      if (Math.abs(root._animMax3 - root._targetMax3) > threshold) {
+        root._animMax3 += (root._targetMax3 - root._animMax3) * scaleLerp;
+        stillAnimating = true;
+      } else if (root._animMax3 !== root._targetMax3) {
+        root._animMax3 = root._targetMax3;
+      }
+
       if (!stillAnimating)
         stop();
     }
@@ -165,10 +219,10 @@ Item {
 
   // Data texture built from Rectangles instead of Canvas.
   // Each Rectangle is one data point, color-coded with normalized values.
-  // R channel = primary, G channel = secondary.
+  // R channel = primary, G channel = secondary, B channel = tertiary.
   Item {
     id: _dataRow
-    width: Math.max(root.values.length + 1, root.values2.length + 1, 4)
+    width: Math.max(root.values.length + 1, root.values2.length + 1, root.values3.length + 1, 4)
     height: 1
 
     Repeater {
@@ -180,11 +234,13 @@ Item {
         width: 1
         height: 1
         color: {
-          let r = 0, g = 0;
+          let r = 0, g = 0, b = 0;
           let n1 = root.values.length;
           let n2 = root.values2.length;
+          let n3 = root.values3.length;
           let eMax1 = root._effectiveMax1;
           let eMax2 = root._effectiveMax2;
+          let eMax3 = root._effectiveMax3;
 
           if (index < n1)
             r = root._normalize(root.values[index], root.minValue, eMax1);
@@ -196,7 +252,12 @@ Item {
           else if (n2 > 0)
             g = root._normalize(root._pred2, root.minValue2, eMax2);
 
-          return Qt.rgba(r, g, 0, 1);
+          if (index < n3)
+            b = root._normalize(root.values3[index], root.minValue3, eMax3);
+          else if (n3 > 0)
+            b = root._normalize(root._pred3, root.minValue3, eMax3);
+
+          return Qt.rgba(r, g, b, 1);
         }
       }
     }
@@ -213,15 +274,18 @@ Item {
 
   ShaderEffect {
     anchors.fill: parent
-    visible: (root.hasData || root.hasData2) && width > 0 && height > 0
+    visible: (root.hasData || root.hasData2 || root.hasData3) && width > 0 && height > 0
 
     property variant dataSource: _dataTex
     property color lineColor1: root.color
     property color lineColor2: root.color2
+    property color lineColor3: root.color3
     property real count1: root.values.length
     property real count2: root.values2.length
+    property real count3: root.values3.length
     property real scroll1: root._t1
     property real scroll2: root._t2
+    property real scroll3: root._t3
     property real lineWidth: root.strokeWidth
     property real graphFillOpacity: root.fill ? root.fillOpacity : 0.0
     property real texWidth: _dataRow.width

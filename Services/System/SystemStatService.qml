@@ -90,6 +90,7 @@ Singleton {
   property var gpuUsageHistory: new Array(gpuHistoryLength).fill(0)
   property var gpuVramHistory: new Array(gpuHistoryLength).fill(0)
   property var memHistory: new Array(memHistoryLength).fill(0)
+  property var swapHistory: new Array(memHistoryLength).fill(0)
   property var diskHistories: ({}) // Keyed by mount path, initialized on first update
   property var rxSpeedHistory: new Array(networkHistoryLength).fill(0)
   property var txSpeedHistory: new Array(networkHistoryLength).fill(0)
@@ -163,6 +164,14 @@ Singleton {
     if (h.length > memHistoryLength)
       h.shift();
     memHistory = h;
+  }
+
+  function pushSwapHistory() {
+    let h = swapHistory.slice();
+    h.push(swapPercent);
+    if (h.length > memHistoryLength)
+      h.shift();
+    swapHistory = h;
   }
 
   function pushDiskHistory() {
@@ -1216,6 +1225,7 @@ Singleton {
       root.swapGb = 0;
       root.swapPercent = 0;
     }
+    root.pushSwapHistory();
   }
 
   // -------------------------------------------------------

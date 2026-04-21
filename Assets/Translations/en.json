@@ -1935,6 +1935,7 @@
     "disk": "Disk",
     "download-speed": "Download speed",
     "gpu-temp": "GPU temp",
+    "gpu": "GPU",
     "gpu-usage": "GPU usage",
     "gpu-vram": "GPU VRAM",
     "load-average": "Load average",

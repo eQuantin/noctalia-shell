@@ -144,7 +144,110 @@ SmartPanel {
         }
       }
 
-      // Memory Card (single-line + optional swap indicator)
+      // GPU Card (tri-series: usage + temp + VRAM)
+      NBox {
+        Layout.fillWidth: true
+        Layout.preferredHeight: Math.round(panelContent.cardHeight * 1.15)
+        visible: SystemStatService.gpuAvailable
+
+        ColumnLayout {
+          anchors.fill: parent
+          anchors.margins: Style.marginS
+          anchors.bottomMargin: Style.radiusM * 0.5
+          spacing: Style.marginXS
+
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Style.marginXS
+
+            NIcon {
+              icon: "gpu-usage"
+              pointSize: Style.fontSizeXS
+              color: Color.mPrimary
+              visible: SystemStatService.gpuUsageAvailable
+            }
+
+            NText {
+              text: `${Math.round(SystemStatService.gpuUsage)}%`
+              pointSize: Style.fontSizeXS
+              color: Color.mPrimary
+              font.family: Settings.data.ui.fontFixed
+              visible: SystemStatService.gpuUsageAvailable
+              Layout.rightMargin: SystemStatService.gpuUsageAvailable ? Style.marginS : 0
+            }
+
+            NIcon {
+              icon: "gpu-temperature"
+              pointSize: Style.fontSizeXS
+              color: Color.mSecondary
+            }
+
+            NText {
+              text: `${Math.round(SystemStatService.gpuTemp)}°C`
+              pointSize: Style.fontSizeXS
+              color: Color.mSecondary
+              font.family: Settings.data.ui.fontFixed
+              Layout.rightMargin: Style.marginS
+            }
+
+            Item {
+              Layout.fillWidth: true
+            }
+
+            NText {
+              text: I18n.tr("system-monitor.gpu")
+              pointSize: Style.fontSizeXS
+              color: Color.mOnSurfaceVariant
+            }
+          }
+
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Style.marginXS
+            visible: SystemStatService.gpuVramAvailable
+
+            NIcon {
+              icon: "gpu-vram"
+              pointSize: Style.fontSizeXS
+              color: Color.mTertiary
+            }
+
+            NText {
+              text: `${Math.round(SystemStatService.gpuVramPercent)}% (${SystemStatService.gpuVramUsedGb.toFixed(1)} / ${SystemStatService.gpuVramTotalGb.toFixed(1)} GiB)`
+              pointSize: Style.fontSizeXS
+              color: Color.mTertiary
+              font.family: Settings.data.ui.fontFixed
+            }
+
+            Item {
+              Layout.fillWidth: true
+            }
+          }
+
+          NGraph {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            values: SystemStatService.gpuUsageAvailable ? SystemStatService.gpuUsageHistory : []
+            values2: SystemStatService.gpuTempHistory
+            values3: SystemStatService.gpuVramAvailable ? SystemStatService.gpuVramHistory : []
+            minValue: 0
+            maxValue: 100
+            minValue2: Math.max(SystemStatService.gpuTempHistoryMin - 5, 0)
+            maxValue2: Math.max(SystemStatService.gpuTempHistoryMax + 5, 1)
+            minValue3: 0
+            maxValue3: 100
+            color: Color.mPrimary
+            color2: Color.mSecondary
+            color3: Color.mTertiary
+            strokeWidth: Math.max(1, Style.uiScaleRatio)
+            fill: true
+            fillOpacity: 0.15
+            updateInterval: SystemStatService.gpuIntervalMs
+          }
+        }
+      }
+
+      // Memory Card (dual-series: memory + swap)
       NBox {
         Layout.fillWidth: true
         Layout.preferredHeight: panelContent.cardHeight
@@ -166,10 +269,26 @@ SmartPanel {
             }
 
             NText {
-              text: `${Math.round(SystemStatService.memPercent)}% (${(SystemStatService.memGb).toFixed(1)} GiB)`
+              text: `${Math.round(SystemStatService.memPercent)}% (${(SystemStatService.memGb).toFixed(1)} / ${(SystemStatService.memTotalGb).toFixed(1)} GiB)`
               pointSize: Style.fontSizeXS
               color: Color.mPrimary
               font.family: Settings.data.ui.fontFixed
+              Layout.rightMargin: Style.marginS
+            }
+
+            NIcon {
+              icon: "exchange"
+              pointSize: Style.fontSizeXS
+              color: Color.mSecondary
+              visible: SystemStatService.swapTotalGb > 0
+            }
+
+            NText {
+              text: `${Math.round(SystemStatService.swapPercent)}% (${(SystemStatService.swapGb).toFixed(1)} / ${(SystemStatService.swapTotalGb).toFixed(1)} GiB)`
+              pointSize: Style.fontSizeXS
+              color: Color.mSecondary
+              font.family: Settings.data.ui.fontFixed
+              visible: SystemStatService.swapTotalGb > 0
             }
 
             Item {
@@ -187,9 +306,13 @@ SmartPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
             values: SystemStatService.memHistory
+            values2: SystemStatService.swapTotalGb > 0 ? SystemStatService.swapHistory : []
             minValue: 0
             maxValue: 100
+            minValue2: 0
+            maxValue2: 100
             color: Color.mPrimary
+            color2: Color.mSecondary
             strokeWidth: Math.max(1, Style.uiScaleRatio)
             fill: true
             fillOpacity: 0.15
@@ -311,33 +434,6 @@ SmartPanel {
             }
           }
 
-          // GPU Temperature (only if available)
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: Style.marginS
-            visible: SystemStatService.gpuAvailable
-
-            NIcon {
-              icon: "gpu-temperature"
-              pointSize: Style.fontSizeM
-              color: Color.mPrimary
-            }
-
-            NText {
-              text: I18n.tr("system-monitor.gpu-temp") + ":"
-              pointSize: Style.fontSizeXS
-              color: Color.mOnSurfaceVariant
-            }
-
-            NText {
-              text: `${Math.round(SystemStatService.gpuTemp)}°C`
-              pointSize: Style.fontSizeXS
-              color: Color.mOnSurface
-              Layout.fillWidth: true
-              horizontalAlignment: Text.AlignRight
-            }
-          }
-
           // Disk usage
           RowLayout {
             Layout.fillWidth: true
@@ -370,32 +466,6 @@ SmartPanel {
             }
           }
 
-          // Swap details (only visible if swap is enabled)
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: Style.marginS
-            visible: SystemStatService.swapTotalGb > 0
-
-            NIcon {
-              icon: "exchange"
-              pointSize: Style.fontSizeM
-              color: Color.mPrimary
-            }
-
-            NText {
-              text: I18n.tr("bar.system-monitor.swap-usage-label") + ":"
-              pointSize: Style.fontSizeXS
-              color: Color.mOnSurfaceVariant
-            }
-
-            NText {
-              text: `${(SystemStatService.swapGb).toFixed(1)} / ${(SystemStatService.swapTotalGb).toFixed(1)} GiB`
-              pointSize: Style.fontSizeXS
-              color: Color.mOnSurface
-              Layout.fillWidth: true
-              horizontalAlignment: Text.AlignRight
-            }
-          }
         }
       }
     }

@@ -10,10 +10,13 @@ layout(std140, binding = 0) uniform buf {
   float qt_Opacity;
   vec4 lineColor1;
   vec4 lineColor2;
+  vec4 lineColor3;
   float count1;
   float count2;
+  float count3;
   float scroll1;
   float scroll2;
+  float scroll3;
   float lineWidth;
   float graphFillOpacity;
   float texWidth;
@@ -22,12 +25,14 @@ layout(std140, binding = 0) uniform buf {
 };
 
 // Sample normalized value from data texture
-// channel 0 = primary (R), channel 1 = secondary (G)
+// channel 0 = primary (R), channel 1 = secondary (G), channel 2 = tertiary (B)
 float fetchData(float idx, int ch) {
   float i = clamp(idx, 0.0, texWidth - 1.0);
   float u = (floor(i) + 0.5) / texWidth;
   vec4 t = texture(dataSource, vec2(u, 0.5));
-  return ch == 0 ? t.r : t.g;
+  if (ch == 0) return t.r;
+  if (ch == 1) return t.g;
+  return t.b;
 }
 
 // Cubic Hermite interpolation with reduced tangent scale for smooth curves
@@ -141,6 +146,26 @@ void main() {
     float aa = (abs(slope2) + 1.0) * inversesqrt(slope2 * slope2 + 1.0) * aaSize * 2.0;
     float sa = smoothstep(halfW + aa, halfW, dist) * lineColor2.a;
     result = blendOver(vec4(lineColor2.rgb * sa, sa), result);
+  }
+
+  // Tertiary line
+  if (count3 >= 4.0) {
+    float segs = count3 - 3.0;
+    float di = 2.0 + scroll3 + uv.x * segs;
+    float pixStep = dFdx(di);
+    float cy = evalCurve(di, 2);
+    float cyNext = evalCurve(di + pixStep, 2);
+
+    if (graphFillOpacity > 0.0 && normY <= cy) {
+      float a = graphFillOpacity * normY * lineColor3.a;
+      result = blendOver(vec4(lineColor3.rgb * a, a), result);
+    }
+
+    float dist = curveDistance(di, pixStep, normY, 2);
+    float slope3 = (cyNext - cy) * resY;
+    float aa = (abs(slope3) + 1.0) * inversesqrt(slope3 * slope3 + 1.0) * aaSize * 2.0;
+    float sa = smoothstep(halfW + aa, halfW, dist) * lineColor3.a;
+    result = blendOver(vec4(lineColor3.rgb * sa, sa), result);
   }
 
   fragColor = result * qt_Opacity;
