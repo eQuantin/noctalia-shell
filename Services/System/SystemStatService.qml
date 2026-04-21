@@ -1049,8 +1049,10 @@ Singleton {
 
   // ----
   // #6 - Read GPU VRAM usage — sysfs mem_info_vram_{used,total} for AMD/Intel,
-  // nvidia-smi for NVIDIA. Values are in bytes on sysfs, converted to decimal GB
-  // (10^9) to match the memory widget's convention.
+  // nvidia-smi for NVIDIA. Values are in bytes on sysfs, converted to binary GiB
+  // (2^30) so totals line up with the advertised capacity (e.g. "16 GB" cards
+  // report ~16.0 GiB, not 17.1 decimal GB) and match the memGb/swapGb convention.
+  readonly property real _bytesPerGiB: 1073741824
   FileView {
     id: gpuVramUsedReader
     printErrors: false
@@ -1058,7 +1060,7 @@ Singleton {
     onLoaded: {
       const bytes = parseFloat(text().trim());
       if (!isNaN(bytes) && bytes >= 0) {
-        root.gpuVramUsedGb = bytes / 1e9;
+        root.gpuVramUsedGb = bytes / root._bytesPerGiB;
         computeGpuVramPercent();
       }
     }
@@ -1075,7 +1077,7 @@ Singleton {
     onLoaded: {
       const bytes = parseFloat(text().trim());
       if (!isNaN(bytes) && bytes > 0) {
-        root.gpuVramTotalGb = bytes / 1e9;
+        root.gpuVramTotalGb = bytes / root._bytesPerGiB;
         root.gpuVramAvailable = true;
         computeGpuVramPercent();
       }
@@ -1095,9 +1097,9 @@ Singleton {
       onStreamFinished: {
         const parts = text.trim().split(",").map(s => parseFloat(s.trim()));
         if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] > 0) {
-          // Convert MiB -> decimal GB: MiB * 1048576 / 1e9
-          root.gpuVramUsedGb = (parts[0] * 1048576) / 1e9;
-          root.gpuVramTotalGb = (parts[1] * 1048576) / 1e9;
+          // Convert MiB -> GiB (both binary)
+          root.gpuVramUsedGb = parts[0] / 1024;
+          root.gpuVramTotalGb = parts[1] / 1024;
           root.gpuVramAvailable = true;
           computeGpuVramPercent();
         }

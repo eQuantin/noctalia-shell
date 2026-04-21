@@ -132,7 +132,7 @@ Item {
         rows.push([I18n.tr("system-monitor.gpu-usage"), `${Math.round(SystemStatService.gpuUsage)}%`]);
       }
       if (tooltipShowGpuVram && SystemStatService.gpuVramAvailable) {
-        rows.push([I18n.tr("system-monitor.gpu-vram"), `${Math.round(SystemStatService.gpuVramPercent)}% (${SystemStatService.gpuVramUsedGb.toFixed(1)} / ${SystemStatService.gpuVramTotalGb.toFixed(1)} GB)`]);
+        rows.push([I18n.tr("system-monitor.gpu-vram"), `${Math.round(SystemStatService.gpuVramPercent)}% (${SystemStatService.gpuVramUsedGb.toFixed(1)} / ${SystemStatService.gpuVramTotalGb.toFixed(1)} GiB)`]);
       }
     }
 
@@ -141,11 +141,11 @@ Item {
     }
 
     if (tooltipShowMemory) {
-      rows.push([I18n.tr("common.memory"), `${Math.round(SystemStatService.memPercent)}% (${(SystemStatService.memGb).toFixed(1)} GiB)`]);
+      rows.push([I18n.tr("common.memory"), `${Math.round(SystemStatService.memPercent)}% (${(SystemStatService.memGb).toFixed(1)} / ${(SystemStatService.memTotalGb).toFixed(1)} GiB)`]);
     }
 
     if (tooltipShowSwap && SystemStatService.swapTotalGb > 0) {
-      rows.push([I18n.tr("bar.system-monitor.swap-usage-label"), `${Math.round(SystemStatService.swapPercent)}% (${(SystemStatService.swapGb).toFixed(1)} GiB)`]);
+      rows.push([I18n.tr("bar.system-monitor.swap-usage-label"), `${Math.round(SystemStatService.swapPercent)}% (${(SystemStatService.swapGb).toFixed(1)} / ${(SystemStatService.swapTotalGb).toFixed(1)} GiB)`]);
     }
 
     if (tooltipShowNetwork) {
