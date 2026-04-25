@@ -78,6 +78,7 @@ Item {
   readonly property string fontFamily: useMonospaceFont ? Settings.data.ui.fontFixed : Settings.data.ui.fontDefault
 
   readonly property int paddingPercent: usePadding ? String("100%").length : 0
+  readonly property int paddingCpuPercent: usePadding ? String((Math.max(1, SystemStatService.nproc) * 100) + "%").length : 0
   readonly property int paddingTemp: usePadding ? String("999°").length : 0
   readonly property int paddingCpuFreq: usePadding ? String("9.9").length : 0
   readonly property int paddingSpeed: usePadding ? String("9999G").length : 0
@@ -112,7 +113,7 @@ Item {
     let rows = [];
 
     if (tooltipShowCpuUsage) {
-      rows.push([I18n.tr("system-monitor.cpu-usage"), `${Math.round(SystemStatService.cpuUsage)}% (${SystemStatService.cpuFreq.replace(/[^0-9.]/g, "")} GHz)`]);
+      rows.push([I18n.tr("system-monitor.cpu-usage"), `${summedCpuUsage}% (${SystemStatService.cpuFreq.replace(/[^0-9.]/g, "")} GHz)`]);
       if (tooltipShowCpuCores) {
         SystemStatService.coresUsage.forEach((usage, core) => rows.push(["  " + I18n.tr("system-monitor.core-usage", {
                                                                                           "id": core
@@ -165,6 +166,18 @@ Item {
     }
 
     return rows;
+  }
+
+  // macOS-style summed CPU usage: 1 core at 100% = 100%, 8 cores at 100% = 800%.
+  // Falls back to the aggregate cpuUsage before the first per-core sample arrives.
+  readonly property int summedCpuUsage: {
+    const cores = SystemStatService.coresUsage;
+    if (!cores || cores.length === 0)
+      return Math.round(SystemStatService.cpuUsage);
+    let sum = 0;
+    for (let i = 0; i < cores.length; i++)
+      sum += cores[i];
+    return Math.round(sum);
   }
 
   // Visibility-aware warning/critical states (delegates to service)
@@ -288,7 +301,7 @@ Item {
           // Text mode
           NText {
             visible: !compactMode
-            text: `${Math.round(SystemStatService.cpuUsage)}%`.padStart(paddingPercent, " ")
+            text: `${summedCpuUsage}%`.padStart(paddingCpuPercent, " ")
             family: fontFamily
             pointSize: barFontSize
             applyUiScale: false
