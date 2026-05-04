@@ -360,6 +360,17 @@ Item {
   }
 
   function getFocusedScreen() {
+    const toplevels = ToplevelManager.toplevels?.values || [];
+    for (const t of toplevels) {
+      if (t && t.activated && t.screens && t.screens.length > 0) {
+        const name = t.screens[0].name;
+        for (let i = 0; i < Quickshell.screens.length; i++) {
+          if (Quickshell.screens[i].name === name) {
+            return Quickshell.screens[i];
+          }
+        }
+      }
+    }
     return null;
   }
 }
